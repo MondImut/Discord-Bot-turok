@@ -1,0 +1,228 @@
+MERGE PROJECT - BOT DC FANDLI + BOT TUROK
+
+TUGAS
+
+Lakukan analisis menyeluruh terhadap seluruh source code project Bot DC Fandli dan Bot Turok.
+
+Jangan menghapus fitur yang sudah ada, kecuali jika fungsinya benar-benar telah digantikan oleh sistem baru.
+
+Target akhir adalah satu project yang rapi, stabil, mudah dikembangkan, dan seluruh fiturnya terintegrasi tanpa bug.
+
+---
+
+PONDASI PROJECT
+
+Gunakan Bot DC Fandli sebagai BASE / pondasi utama.
+
+Artinya:
+
+- Struktur project mengikuti Bot Fandli.
+- Database mengikuti Bot Fandli.
+- Command user mengikuti Bot Fandli.
+- Seluruh sistem utama mengikuti Bot Fandli.
+
+Bot Turok hanya digunakan sebagai sumber modul dan fitur yang lebih baik.
+
+---
+
+BOOMBOX
+
+Untuk seluruh sistem BoomBox:
+
+Ambil seluruh implementasi BoomBox dari Bot Turok.
+
+Jangan ada satu bagian pun yang tertinggal.
+
+Meliputi seluruh sistem yang berhubungan dengan BoomBox, seperti:
+
+- Setup
+- Panel
+- Provider
+- Queue
+- Cache
+- Worker
+- Health Monitor
+- Logs
+- Archive
+- Error Logs
+- Maintenance
+- Configuration
+- Seluruh validasi
+- Seluruh pengaturan
+- Seluruh handler
+- Seluruh utilitas
+- Seluruh UI BoomBox
+
+Jika terdapat perbedaan implementasi antara Fandli dan Turok, gunakan implementasi milik Turok untuk bagian BoomBox.
+
+---
+
+KEYLOGGER SCANNER
+
+Gunakan sistem Keylogger Scanner dari Bot Turok.
+
+Pastikan seluruh fungsi scanner berjalan normal setelah dipindahkan.
+
+Jangan mengurangi kemampuan scanner.
+
+---
+
+FITUR LAIN
+
+Selain BoomBox dan Keylogger Scanner:
+
+Tetap gunakan implementasi milik Bot Fandli.
+
+Jangan mengganti sistem yang sudah stabil.
+
+Jangan menambahkan fitur baru.
+
+---
+
+SETUP
+
+Semua command setup yang terpisah harus dihapus.
+
+Contoh:
+
+/setupboombox
+
+/setticket
+
+/setthread
+
+/setdatabase
+
+/setupgithub
+
+dan command setup lain yang memiliki fungsi konfigurasi.
+
+Seluruh konfigurasi dipusatkan menjadi satu command:
+
+/setup
+
+---
+
+PANEL SETUP
+
+Saat admin menjalankan:
+
+/setup
+
+Bot mengirim satu embed.
+
+Embed menggunakan Dropdown (String Select Menu).
+
+Dropdown hanya berisi fitur yang memang sudah ada di kedua project.
+
+Jangan membuat menu baru.
+
+Saat memilih salah satu menu, bot cukup mengedit embed yang sama.
+
+Jangan mengirim pesan baru.
+
+Gunakan satu panel interaktif.
+
+---
+
+TAMPILAN
+
+Samakan seluruh UI agar konsisten.
+
+Gunakan style yang sama untuk:
+
+- Embed
+- Tombol
+- Dropdown
+- Footer
+- Warna
+- Icon
+- Pesan sukses
+- Pesan error
+
+---
+
+COMMAND USER
+
+Jangan menghapus command yang digunakan user.
+
+Contohnya:
+
+/help
+
+/scan
+
+/boombox
+
+/ai
+
+dan command user lainnya tetap dipertahankan.
+
+Yang dihapus hanya command setup yang digantikan oleh /setup.
+
+---
+
+DATABASE
+
+Tetap gunakan sistem database milik Bot Fandli.
+
+Sesuaikan seluruh modul dari Turok agar kompatibel dengan database tersebut.
+
+Jangan membuat database baru jika tidak diperlukan.
+
+---
+
+CLEANUP
+
+Setelah proses merge selesai:
+
+- Hapus file duplikat
+- Hapus utilitas yang tidak digunakan
+- Hapus dependency yang tidak digunakan
+- Hapus kode lama yang sudah digantikan
+- Rapikan struktur project
+
+Jangan menghapus kode yang masih digunakan.
+
+---
+
+BUG FIX
+
+Pastikan setelah merge:
+
+- Tidak ada duplicate reply
+- Tidak ada duplicate command
+- Tidak ada interaction failed
+- Tidak ada module conflict
+- Tidak ada dependency conflict
+- Tidak ada import error
+- Tidak ada memory leak
+- Tidak ada promise yang menggantung
+
+---
+
+PENGECEKAN AKHIR
+
+Sebelum dianggap selesai, lakukan pengecekan menyeluruh terhadap:
+
+- Seluruh command
+- Seluruh event
+- Seluruh handler
+- Seluruh module
+- Database
+- Permission
+- Setup
+- BoomBox
+- Keylogger Scanner
+- Ticket
+- Thread
+- Premium
+- GitHub Backup
+- AI
+- Semua fitur lain yang memang sudah ada
+
+Pastikan seluruh fitur berjalan normal tanpa mengurangi fungsi apa pun.
+
+Jangan menambahkan fitur yang tidak ada di Bot DC Fandli maupun Bot Turok.
+
+Fokus utama adalah menghasilkan satu project yang bersih, stabil, dan seluruh fiturnya terintegrasi dengan baik.
