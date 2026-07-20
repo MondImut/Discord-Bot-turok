@@ -2,5 +2,7 @@
 - [Dual database architecture](dual-db.md) — JSON files for all Fandli features; SQLite (better-sqlite3 v12) for BoomBox only at data/database/boombox.db.
 - [Legacy db stub](legacy-db-stub.md) — db.js exports a no-op stub `db` object; old Fandli BoomBox JSON methods all return safe defaults; real BoomBox data is in BoomBoxDB via getBoomBoxDB().
 - [BoomBoxDB getStats return shape](boombox-stats.md) — getStats(guildId) returns row with `total_convert` field (not `total`); hesuCommand bridges to this.
-- [bblog interactions retired](bblog-retired.md) — bblog: interaction prefix is fully retired; logDashboard.js and logInteraction.js deleted; Turok PanelManager handles BoomBox logs via bb: prefix.
+- [bblog interactions retired](bblog-retired.md) — bblog: interaction prefix fully retired; logDashboard.js and logInteraction.js deleted; Turok PanelManager handles BoomBox logs via bb: prefix.
 - [better-sqlite3 version](sqlite-version.md) — Must use better-sqlite3 ^12.11.1; v9.x fails to compile on Node.js v24 due to V8 API changes; v12 has prebuilt binaries.
+- [BoomBox setup from /setup panel](boombox-setup-integration.md) — showBoomBoxPanel() MUST use interaction.update() for in-place rendering; NEVER call deferUpdate()+handleSetupCommand() (handleSetupCommand uses interaction.reply() and crashes on deferred interactions).
+- [setupboombox slash commands removed](setup-commands-removed.md) — /setupboombox and /delsetupboombox never existed as slash command files; all setup/reset now via /setup → BoomBox Manager. Reset button customId: setup:boombox:delete → routed in handleSetupInteraction().

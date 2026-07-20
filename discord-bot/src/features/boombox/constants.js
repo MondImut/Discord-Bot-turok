@@ -71,7 +71,7 @@ export const ERROR_TYPES = {
 
 // ─── Suggested solutions per category ────────────────────────────────────────
 export const ERROR_SOLUTIONS = {
-  Setup:      'Jalankan `/setupboombox` ulang dan pastikan bot memiliki akses ke semua channel.',
+  Setup:      'Gunakan `/setup` → BoomBox Manager dan pastikan bot memiliki akses ke semua channel.',
   Queue:      'Restart bot jika antrian macet. Cek kapasitas worker di BoomBox Settings.',
   Worker:     'Periksa koneksi internet bot. Coba ganti mode performa ke Eco di BoomBox Settings.',
   Downloader: 'Provider mungkin down. Bot akan otomatis mencoba provider lain secara berurutan.',
@@ -80,7 +80,7 @@ export const ERROR_SOLUTIONS = {
   Database:   'Periksa status bot dan storage. Gunakan Rebuild Database di BoomBox Settings.',
   Archive:    'Coba refresh Archive Panel. Jika tetap error, hubungi admin.',
   Settings:   'Coba interaksi ulang Settings Panel.',
-  Panel:      'Jalankan `/setupboombox` → Rebuild Panel untuk memulihkan panel.',
+  Panel:      'Gunakan `/setup` → BoomBox Manager → Rebuild Panel untuk memulihkan panel.',
   Unknown:    'Error tidak diketahui. Detail teknis tersedia di stack trace di atas.',
 };
 

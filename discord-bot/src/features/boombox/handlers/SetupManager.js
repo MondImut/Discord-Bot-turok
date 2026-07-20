@@ -80,7 +80,7 @@ export class SetupManager {
           title: '⚙️ BoomBox Sudah Dikonfigurasi',
           description:
             'BoomBox sudah dikonfigurasi di server ini.\n\n' +
-            'Jika ingin membuat setup baru, hapus konfigurasi terlebih dahulu menggunakan `/delsetupboombox`.',
+            'Untuk mereset, gunakan `/setup` → pilih **BoomBox Manager** → klik **Reset Konfigurasi**.',
           footer: { text: 'Powered by Pangeran Assistant' },
         }],
         flags: MessageFlags.Ephemeral,
@@ -188,16 +188,22 @@ export class SetupManager {
       this.#db.setManagerMsgId(interaction.guildId, msg.id);
       this.#panels.set(interaction.guildId, { guild: interaction.guild, managerMsg: msg, urlLogsMsg: null });
 
+      const backRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('setup:back')
+          .setLabel('🏠 Kembali ke Setup')
+          .setStyle(ButtonStyle.Secondary),
+      );
       await interaction.editReply({
         embeds: [{
           color: 0x57F287,
           title: '✅ BoomBox Manager Berhasil Dibuat',
           description:
             `Panel BoomBox Manager telah dibuat di <#${channelId}>.\n\n` +
-            'Gunakan dropdown **Setup BoomBox** pada panel untuk mengkonfigurasi channel YouTube, TikTok, Spotify, Error Logs, dan URL Logs.',
+            'Gunakan dropdown **Setup BoomBox** pada panel tersebut untuk mengkonfigurasi channel YouTube, TikTok, Spotify, Error Logs, dan URL Logs.',
           footer: { text: 'Powered by Pangeran Assistant' },
         }],
-        components: [],
+        components: [backRow],
       });
     } catch (err) {
       this.#logger.error(`Setup failed: ${err.message}`, 'SetupManager');
@@ -301,7 +307,7 @@ export class SetupManager {
         title: '✅ Konfigurasi BoomBox Dihapus',
         description:
           'Semua panel dan konfigurasi telah dihapus.\n\n' +
-          'Arsip URL tetap tersimpan. Jalankan `/setupboombox` untuk setup ulang.',
+          'Arsip URL tetap tersimpan. Gunakan `/setup` → BoomBox Manager untuk setup ulang.',
         footer: { text: 'Powered by Pangeran Assistant' },
       }],
       components: [],
@@ -927,7 +933,7 @@ export class SetupManager {
   }
 
   async #replyNoConfig(interaction) {
-    const payload = { content: '❌ BoomBox belum dikonfigurasi. Jalankan `/setupboombox`.', flags: MessageFlags.Ephemeral };
+    const payload = { content: '❌ BoomBox belum dikonfigurasi. Gunakan `/setup` → BoomBox Manager.', flags: MessageFlags.Ephemeral };
     try {
       if (interaction.replied || interaction.deferred) await interaction.followUp(payload);
       else await interaction.reply(payload);

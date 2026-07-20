@@ -283,7 +283,7 @@ export class SettingsHandler {
 
   async #noConfig(interaction) {
     await interaction.reply({
-      content: '❌ Konfigurasi BoomBox tidak ditemukan. Jalankan `/setupboombox` terlebih dahulu.',
+      content: '❌ Konfigurasi BoomBox tidak ditemukan. Gunakan `/setup` → BoomBox Manager.',
       flags: MessageFlags.Ephemeral,
     });
   }

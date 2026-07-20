@@ -24,6 +24,10 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelSelectMenuBuilder,
+  ChannelType,
   MessageFlags,
 } from 'discord.js';
 import { denyIfNotStaff }     from '../middleware/permissions.js';
@@ -38,6 +42,7 @@ import {
   buildSetupManageComponents,
 } from '../features/database/embed.js';
 import { getBoomBoxDB, getBoomBoxSetupManager } from '../features/boombox/index.js';
+import { MCID } from '../features/boombox/constants.js';
 
 // ── Slash command definition ────────────────────────────────────────────────
 
@@ -133,7 +138,7 @@ async function showBoomBoxPanel(interaction) {
   const config = db.getConfig(interaction.guildId);
 
   if (config && config.ch_monitor) {
-    // Already configured — show status
+    // Already configured — show status with Reset button
     const chMonitor = config.ch_monitor ? `<#${config.ch_monitor}>` : '❌ Belum diatur';
     const chYT      = config.ch_youtube  ? `<#${config.ch_youtube}>`  : '❌ Belum diatur';
     const chTK      = config.ch_tiktok   ? `<#${config.ch_tiktok}>`   : '❌ Belum diatur';
@@ -145,9 +150,9 @@ async function showBoomBoxPanel(interaction) {
         .setColor(0x57f287)
         .setTitle('🎵 BoomBox Manager — Terkonfigurasi')
         .setDescription(
-          'BoomBox sudah dikonfigurasi di server ini.\n\n' +
-          'Gunakan **Panel Manager** yang dikirim ke channel monitoring untuk mengelola pengaturan.\n\n' +
-          'Untuk reset: jalankan `/delsetupboombox`.',
+          'BoomBox sudah aktif di server ini.\n\n' +
+          'Gunakan **Panel Manager** di channel monitoring untuk mengelola semua pengaturan.\n\n' +
+          '⚠️ Klik **Reset** untuk menghapus konfigurasi dan memulai setup ulang.',
         )
         .addFields(
           { name: '📡 Monitoring', value: chMonitor, inline: true },
@@ -158,33 +163,45 @@ async function showBoomBoxPanel(interaction) {
         )
         .setFooter({ text: FOOTER_TEXT })
         .setTimestamp()],
-      components: [buildOverviewSelect('boombox')],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('setup:boombox:delete')
+            .setLabel('🗑️ Reset Konfigurasi')
+            .setStyle(ButtonStyle.Danger),
+        ),
+        buildOverviewSelect('boombox'),
+      ],
     });
   }
 
-  // Not configured — show initial BoomBox Manager setup
-  const setupManager = getBoomBoxSetupManager();
-  if (!setupManager) {
-    return interaction.update({
-      embeds: [new EmbedBuilder()
-        .setColor(0xed4245)
-        .setTitle('❌ BoomBox Tidak Tersedia')
-        .setDescription('BoomBox setup manager belum tersedia. Coba restart bot.')
-        .setFooter({ text: FOOTER_TEXT })],
-      components: [buildOverviewSelect('boombox')],
-    });
-  }
-
-  // Delegate to SetupManager's initial setup UI (channel picker → save)
-  // SetupManager.handleSetupCommand() sends a new ephemeral reply, which
-  // works when called from a select menu interaction too.
-  await interaction.deferUpdate();
-  // Forward to SetupManager — it sends its own ephemeral reply
-  await setupManager.handleSetupCommand(interaction).catch(async (err) => {
-    await interaction.followUp({
-      content: `❌ Gagal membuka BoomBox setup: ${err.message.slice(0, 200)}`,
-      flags: MessageFlags.Ephemeral,
-    });
+  // Not configured — render channel picker in-place using update()
+  // IMPORTANT: do NOT call deferUpdate() + handleSetupCommand() — that path
+  // triggers interaction.reply() on an already-deferred interaction and crashes.
+  return interaction.update({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR_PANEL)
+      .setTitle('⚙️ Setup BoomBox Manager')
+      .setDescription(
+        'Pilih channel yang akan dijadikan **BoomBox Monitoring**.\n\n' +
+        'Panel BoomBox Manager akan dikirim ke channel tersebut setelah disimpan.',
+      )
+      .setFooter({ text: FOOTER_TEXT })],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+          .setCustomId(MCID.SETUP_CH)
+          .setPlaceholder('Pilih channel untuk BoomBox Monitoring…')
+          .addChannelTypes(ChannelType.GuildText),
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(MCID.SETUP_SAVE)
+          .setLabel('💾 Simpan')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(true),
+      ),
+    ],
   });
 }
 
@@ -358,5 +375,19 @@ export async function handleSetupInteraction(interaction, _client) {
       embeds:     [buildOverviewEmbed()],
       components: [buildOverviewSelect()],
     });
+  }
+
+  // BoomBox reset config button (shown on "already configured" panel)
+  if (id === 'setup:boombox:delete') {
+    const setupManager = getBoomBoxSetupManager();
+    if (!setupManager) {
+      return interaction.reply({
+        content: '❌ BoomBox tidak tersedia. Coba restart bot.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+    // handleDeleteCommand sends its own ephemeral reply with a confirmation dialog.
+    // This is a fresh button interaction — interaction.reply() is valid here.
+    return setupManager.handleDeleteCommand(interaction);
   }
 }

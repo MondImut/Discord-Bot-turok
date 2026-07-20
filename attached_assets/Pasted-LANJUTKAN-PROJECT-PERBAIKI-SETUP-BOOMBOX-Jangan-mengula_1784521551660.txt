@@ -1,0 +1,117 @@
+LANJUTKAN PROJECT - PERBAIKI SETUP BOOMBOX
+
+Jangan mengulang analisis project dari awal.
+
+Lanjutkan dari kondisi project saat ini.
+
+Fokus hanya pada penyelesaian bug yang masih tersisa.
+
+---
+
+1. HAPUS COMMAND LEGACY
+
+Karena seluruh konfigurasi sekarang dipusatkan di "/setup", hapus seluruh command setup lama yang sudah tidak digunakan.
+
+Minimal meliputi:
+
+- "/setupboombox"
+- "/delsetupboombox"
+
+Hapus juga:
+
+- Slash command registration
+- Handler
+- Import
+- Router
+- Help
+- Autocomplete
+- Semua referensi yang masih memanggil command tersebut
+
+Pastikan command tersebut benar-benar hilang dari bot dan tidak ikut ter-deploy lagi.
+
+---
+
+2. PERBAIKI BUG SETUP BOOMBOX
+
+Saat memilih BoomBox Manager dari dropdown "/setup", muncul error:
+
+«The reply to this interaction has already been sent or deferred.»
+
+Perbaiki penyebabnya.
+
+Pastikan lifecycle Discord Interaction benar.
+
+Jangan melakukan:
+
+- reply() dua kali
+- deferReply() dua kali
+- reply() setelah deferReply()
+- update() setelah interaction sudah selesai tanpa pengecekan
+
+Gunakan metode Discord.js yang benar seperti:
+
+- update()
+- editReply()
+- edit message
+
+sesuai jenis interaction.
+
+---
+
+3. SATU PANEL SAJA
+
+Seluruh Setup menggunakan SATU pesan.
+
+Jangan membuat pesan baru.
+
+Semua perpindahan menu harus menggunakan edit/update pada embed yang sama.
+
+---
+
+4. BOOMBOX MANAGER
+
+Pastikan ketika memilih BoomBox Manager:
+
+- Panel BoomBox berhasil terbuka.
+- Tidak ada error interaction.
+- Semua button berfungsi.
+- Semua dropdown berfungsi.
+- Tombol Back kembali ke menu utama.
+- Home kembali ke panel awal.
+- Semua konfigurasi BoomBox dapat diakses.
+
+---
+
+5. TESTING
+
+Sebelum dianggap selesai lakukan pengujian:
+
+✅ "/setup"
+
+✅ pilih BoomBox Manager
+
+✅ seluruh tombol BoomBox
+
+✅ seluruh dropdown BoomBox
+
+✅ kembali ke Home
+
+✅ tidak ada error di console
+
+✅ tidak ada "Interaction Failed"
+
+✅ tidak ada "The reply to this interaction has already been sent or deferred"
+
+---
+
+6. LAPORAN
+
+Setelah selesai berikan laporan:
+
+- File yang diubah
+- Penyebab bug
+- Cara memperbaikinya
+- Hasil pengujian
+- Apakah BoomBox Manager sudah dapat dibuka tanpa error
+
+Jangan mengubah fitur lain. Fokus hanya menyelesaikan bug Setup BoomBox sampai berfungsi normal.
