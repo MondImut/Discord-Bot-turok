@@ -2,42 +2,29 @@
  * YouTube Provider: yt-dlp
  *
  * Two exported providers:
- *   1. ytdlpProvider        — runs WITHOUT cookies first (fastest path)
- *   2. ytdlpCookiesProvider — runs WITH cookies; skips immediately if no cookies file found
+ *   1. ytdlpProvider        — runs WITHOUT cookies (primary)
+ *   2. ytdlpCookiesProvider — runs WITH cookies; skips immediately if no file found
  *
- * Provider order in YouTube.js:
- *   yt-dlp → yt-dlp+cookies → Kaizen → Y2MP3 → Cobalt
+ * Dynamic timeout: computed from ctx.duration so short videos (< 3 min) get 20s,
+ * long videos (60 min+) get 120s — never times out unnecessarily on real content.
+ *
+ * Context (ctx):
+ *   ctx.duration — video duration in seconds from preflight (0 = unknown)
+ *   ctx.id       — video ID from preflight (avoids regex re-extraction)
  *
  * Quality: worstaudio — lowest possible audio quality for maximum speed.
- * Timeout: 13 s (fits safely inside ProviderRegistry.PROVIDER_TIMEOUT_MS = 15 s).
- *
- * IMPORTANT: uses async spawn (not spawnSync) to avoid blocking the Node.js
- * event loop. spawnSync would freeze all workers and Discord events for 13 s.
+ * Uses async spawn — does NOT block the Node.js event loop.
  */
 
-import { spawn }                     from 'child_process';
-import { existsSync, readdirSync }   from 'fs';
-import { tmpdir }                    from 'os';
-import { join }                      from 'path';
-import { randomBytes }               from 'crypto';
+import { spawn }          from 'child_process';
+import { readdirSync }    from 'fs';
+import { tmpdir }         from 'os';
+import { join }           from 'path';
+import { randomBytes }    from 'crypto';
+import { YTDLP_BIN }      from './ytdlp-bin.js';
+import { ytdlpTimeout }   from './preflight.js';
 
-const YTDLP_CANDIDATES = [
-  process.env.YTDLP_PATH,
-  '/nix/store/am2x1y1qyja0hbyjpffj7rcvycp9d644-yt-dlp-2025.6.30/bin/yt-dlp',
-  '/home/runner/workspace/.pythonlibs/bin/yt-dlp',
-  '/usr/local/bin/yt-dlp',
-  '/usr/bin/yt-dlp',
-  'yt-dlp',
-].filter(Boolean);
-
-function findYtdlp() {
-  for (const p of YTDLP_CANDIDATES) {
-    if (!p.includes('/') || existsSync(p)) return p;
-  }
-  return 'yt-dlp';
-}
-
-export const YTDLP_BIN = findYtdlp();
+export { YTDLP_BIN };
 
 function extractVideoId(url) {
   const m = url.match(/(?:[?&]v=|youtu\.be\/|\/shorts\/|\/embed\/)([a-zA-Z0-9_-]{11})/);
@@ -63,10 +50,17 @@ function findCookiesFile() {
 }
 
 /**
- * Build yt-dlp args with worstaudio quality.
+ * Build yt-dlp args.
  * @param {string}      url
  * @param {string}      prefix     — output path prefix (no extension)
- * @param {string|null} cookiesFile — if set, adds --cookies arg
+ * @param {string|null} cookiesFile
+ */
+/**
+ * Build yt-dlp args.
+ * Uses ios player_client to bypass YouTube bot-checks (works without cookies in many cases).
+ * @param {string}      url
+ * @param {string}      prefix     — output path prefix (no extension)
+ * @param {string|null} cookiesFile
  */
 function buildArgs(url, prefix, cookiesFile = null) {
   const args = [
@@ -76,6 +70,8 @@ function buildArgs(url, prefix, cookiesFile = null) {
     '--no-playlist',
     '--no-warnings',
     '--quiet',
+    // Use iOS client to bypass bot-checks without cookies in most cases
+    '--extractor-args', 'youtube:player_client=ios,mweb',
     '-o', `${prefix}.%(ext)s`,
     '--print', '%(title)s',
     '--print', '%(id)s',
@@ -90,10 +86,11 @@ function buildArgs(url, prefix, cookiesFile = null) {
   return args;
 }
 
-function buildResult(lines, filename, videoId) {
-  const title    = lines[0]?.trim() || `YouTube ${videoId ?? 'Video'}`;
-  const id       = lines[1]?.trim() || videoId || 'unknown';
-  const duration = parseInt(lines[2], 10) || 0;
+function buildResult(lines, filename, videoId, ctx) {
+  const title    = lines[0]?.trim() || ctx?.title || `YouTube ${videoId ?? 'Video'}`;
+  const id       = lines[1]?.trim() || videoId || ctx?.id || 'unknown';
+  // Prefer preflight duration (exact) over yt-dlp printed duration (can differ by 1s)
+  const duration = ctx?.duration || parseInt(lines[2], 10) || 0;
 
   return {
     platform:     'youtube',
@@ -106,22 +103,21 @@ function buildResult(lines, filename, videoId) {
 }
 
 /**
- * Run yt-dlp asynchronously — does NOT block the Node.js event loop.
- * Resolves with media result or rejects with a clear error so ProviderRegistry
- * can fall through to the next provider immediately.
+ * Run yt-dlp asynchronously.
  *
  * @param {string}      url
  * @param {string|null} cookiesFile
- * @param {string}      label        — used in error messages
+ * @param {string}      label
+ * @param {object}      ctx         — { id, title, duration } from preflight
  */
-function runYtdlp(url, cookiesFile, label) {
-  const videoId = extractVideoId(url);
-  const uid     = randomBytes(6).toString('hex');
-  const prefix  = join(tmpdir(), `boombox_yt_${uid}`);
-  const args    = buildArgs(url, prefix, cookiesFile);
+function runYtdlp(url, cookiesFile, label, ctx) {
+  const videoId   = ctx?.id ?? extractVideoId(url);
+  const timeout   = ytdlpTimeout(ctx?.duration ?? 0);
+  const uid       = randomBytes(6).toString('hex');
+  const prefix    = join(tmpdir(), `boombox_yt_${uid}`);
+  const args      = buildArgs(url, prefix, cookiesFile);
 
   return new Promise((resolve, reject) => {
-    // Guard against double-settle (timer + close racing each other)
     let settled = false;
     const settle = (fn) => { if (!settled) { settled = true; fn(); } };
 
@@ -137,13 +133,13 @@ function runYtdlp(url, cookiesFile, label) {
     proc.stdout.on('data', (chunk) => { stdout += chunk; });
     proc.stderr.on('data', (chunk) => { stderr += chunk; });
 
-    // Hard timeout — kill process, then reject so next provider is tried immediately
+    // Dynamic timeout based on video duration from preflight
     const timer = setTimeout(() => {
       try { proc.kill('SIGTERM'); } catch {}
       settle(() => reject(
-        new Error(`${label}: timeout 13s — terlalu lambat. Fallback ke provider berikutnya.`)
+        new Error(`${label}: timeout ${timeout / 1000}s — video mungkin terlalu besar. Fallback ke provider berikutnya.`)
       ));
-    }, 13_000);
+    }, timeout);
 
     proc.on('error', (err) => {
       clearTimeout(timer);
@@ -152,15 +148,13 @@ function runYtdlp(url, cookiesFile, label) {
 
     proc.on('close', (code, signal) => {
       clearTimeout(timer);
-      if (settled) return; // Timeout already fired
+      if (settled) return;
 
       const stdoutTrim  = stdout.trim();
-      const isBotCheck  = stderr.includes('Sign in to confirm') ||
-                          stderr.includes('bot') ||
-                          stderr.includes('captcha');
+      const isBotCheck  = /Sign in to confirm|captcha|challenge/i.test(stderr);
       const isTimedOut  = signal === 'SIGTERM';
 
-      // Check if output file was actually written (yt-dlp quirk on non-zero exit)
+      // Cek apakah output file berhasil ditulis
       let matches = [];
       try {
         const fileBase = `boombox_yt_${uid}.`;
@@ -171,20 +165,15 @@ function runYtdlp(url, cookiesFile, label) {
 
       const lines = stdoutTrim.split('\n');
 
-      // Success path: exit 0 OR file written with title in stdout
-      if (code === 0 || (matches.length && lines[0]?.trim())) {
-        if (!matches.length) {
-          return settle(() => reject(
-            new Error(`${label}: file audio tidak ditemukan setelah download.`)
-          ));
-        }
-        return settle(() => resolve(buildResult(lines, matches[0], videoId)));
+      // File scan: file harus ada setelah yt-dlp selesai
+      if (matches.length && lines[0]?.trim()) {
+        // File ada DAN stdout berisi metadata — sukses
+        return settle(() => resolve(buildResult(lines, matches[0], videoId, ctx)));
       }
 
-      // Hard failures — throw immediately so ProviderRegistry tries next provider
       if (isTimedOut) {
         return settle(() => reject(
-          new Error(`${label}: timeout — terlalu lambat. Fallback ke provider berikutnya.`)
+          new Error(`${label}: timeout ${timeout / 1000}s. Fallback ke provider berikutnya.`)
         ));
       }
       if (isBotCheck) {
@@ -193,7 +182,14 @@ function runYtdlp(url, cookiesFile, label) {
         ));
       }
 
-      const detail = stderr.slice(-300).trim();
+      if (code === 0 && !matches.length) {
+        // Exit 0 tapi tidak ada file = YouTube memblokir stream download secara diam-diam
+        return settle(() => reject(
+          new Error(`${label}: YouTube memblokir download (exit 0, tidak ada file). Bot-check atau IP diblokir. Fallback ke provider berikutnya.`)
+        ));
+      }
+
+      const detail = stderr.slice(-400).trim();
       settle(() => reject(
         new Error(`${label} [exit ${code}]: ${detail || 'Download gagal.'}`)
       ));
@@ -203,24 +199,16 @@ function runYtdlp(url, cookiesFile, label) {
 
 // ─── Provider 1: yt-dlp without cookies ──────────────────────────────────────
 
-/**
- * Primary yt-dlp provider — no cookies.
- * If YouTube returns bot-check, throws immediately so ytdlpCookiesProvider is tried next.
- */
-export async function ytdlpProvider(url) {
-  return runYtdlp(url, null, 'yt-dlp');
+export async function ytdlpProvider(url, ctx = {}) {
+  return runYtdlp(url, null, 'yt-dlp', ctx);
 }
 
 // ─── Provider 2: yt-dlp with cookies ─────────────────────────────────────────
 
-/**
- * yt-dlp fallback with cookies file.
- * Skips immediately if no cookies file is found (throw → ProviderRegistry tries Kaizen next).
- */
-export async function ytdlpCookiesProvider(url) {
+export async function ytdlpCookiesProvider(url, ctx = {}) {
   const cookiesFile = findCookiesFile();
   if (!cookiesFile) {
     throw new Error('yt-dlp+cookies: file cookies tidak ditemukan. Skip ke provider berikutnya.');
   }
-  return runYtdlp(url, cookiesFile, 'yt-dlp+cookies');
+  return runYtdlp(url, cookiesFile, 'yt-dlp+cookies', ctx);
 }

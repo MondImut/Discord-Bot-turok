@@ -1,7 +1,9 @@
 /**
  * Platforms — Unified entry point for all supported platforms.
- * Each platform now uses a ProviderRegistry for multi-provider fallback.
- * mp4: direct-download platform, no provider registry needed.
+ *
+ * Each platform uses a ProviderRegistry for multi-provider fallback.
+ * ctx (pre-fetched metadata) is forwarded to the registry and all providers:
+ *   { id, title, duration }  — from YouTube preflight or TikTok/Spotify oEmbed.
  */
 
 import { isYouTubeUrl, resolveYouTube, extractYouTubeId, getYouTubeProviderStatus } from './YouTube.js';
@@ -21,7 +23,7 @@ export const Platforms = {
 /**
  * Detect the platform for a given URL.
  * @param {string} url
- * @returns {'youtube'|'tiktok'|'spotify'|null}
+ * @returns {'youtube'|'tiktok'|'spotify'|'mp4'|null}
  */
 export function detectPlatform(url) {
   for (const [name, p] of Object.entries(Platforms)) {
@@ -45,25 +47,27 @@ export function extractMediaId(url, platform) {
 
 /**
  * Resolve a URL to metadata + BoomBox URL.
+ *
  * @param {string} url
  * @param {string} platform
- * @param {object} logger   — passed to ProviderRegistry for logging
+ * @param {object} logger
+ * @param {object} [ctx={}]   Pre-fetched metadata { id, title, duration } — forwarded to providers.
  */
-export async function resolveUrl(url, platform, logger) {
+export async function resolveUrl(url, platform, logger, ctx = {}) {
   const p = Platforms[platform];
   if (!p) throw new Error(`Platform tidak dikenal: ${platform}`);
-  return p.resolve(url, logger);
+  return p.resolve(url, logger, ctx);
 }
 
 /**
- * Get a combined health snapshot for all platform registries.
- * Safe to call at any time — returns empty arrays for registries not yet initialized.
- * @returns {{ youtube: ProviderStatus[], tiktok: ProviderStatus[], spotify: ProviderStatus[] }}
+ * Combined health snapshot for all platform registries.
+ * Safe to call at any time — returns empty arrays for uninitialised registries.
  */
 export function getAllProviderStatus() {
   return {
     youtube: getYouTubeProviderStatus(),
     tiktok:  getTikTokProviderStatus(),
     spotify: getSpotifyProviderStatus(),
+    mp4:     getMp4ProviderStatus?.() ?? [],
   };
 }

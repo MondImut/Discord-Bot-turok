@@ -4,6 +4,8 @@
  * Provider order:
  *   1. tikwm.com   — primary, free public API
  *   2. ssstik.io   — scrape-based fallback
+ *
+ * ctx is accepted for API compatibility but not used (TikTok has no preflight).
  */
 
 import { ProviderRegistry } from './ProviderRegistry.js';
@@ -15,14 +17,14 @@ let _registry = null;
 
 export function getTikTokRegistry(logger) {
   if (!_registry) {
-    _registry = new ProviderRegistry('TikTok', logger);
-    _registry.register('tikwm',  tikwmProvider);
-    _registry.register('ssstik', ssstikProvider);
+    _registry = new ProviderRegistry('TikTok', logger, { timeoutMs: 20_000 });
+    _registry.register('tikwm',  tikwmProvider,  { timeoutMs: 15_000 });
+    _registry.register('ssstik', ssstikProvider, { timeoutMs: 20_000 });
   }
   return _registry;
 }
 
-/** Return provider status only if the registry was already initialized. Safe at any time. */
+/** Return provider status only if the registry was already initialized. */
 export function getTikTokProviderStatus() {
   return _registry?.getStatus() ?? [];
 }
@@ -44,7 +46,8 @@ export function extractTikTokId(url) {
  * Resolve a TikTok URL via the provider chain.
  * @param {string} url
  * @param {object} logger
+ * @param {object} [ctx={}]   (unused for TikTok, kept for interface consistency)
  */
-export async function resolveTikTok(url, logger) {
-  return getTikTokRegistry(logger).resolve(url);
+export async function resolveTikTok(url, logger, ctx = {}) {
+  return getTikTokRegistry(logger).resolve(url, ctx);
 }

@@ -4,19 +4,25 @@
  * Flow:
  *   1. Fetch Spotify oEmbed → title + author_name (artist) only
  *   2. Search YouTube Music (ytmsearch1:) → fallback YouTube (ytsearch1:) via yt-dlp
- *   3. Download full-duration audio
+ *   3. Download full-duration audio to local temp file
  *
  * TIDAK menggunakan Spotify preview_url / p.scdn.co / audio preview endpoint.
  * Spotify hanya dipakai untuk metadata; audio diambil penuh dari YouTube.
+ *
+ * Internal yt-dlp timeout: 40s < 50s registry timeout → proses selalu ter-kill
+ * sebelum ProviderRegistry timeout; tidak ada orphan process atau temp file leak.
  */
 
-import { spawn }           from 'child_process';
-import { readdirSync }     from 'fs';
-import { tmpdir }          from 'os';
-import { join }            from 'path';
-import { randomBytes }     from 'crypto';
-import { URL_PATTERNS }    from '../../../constants.js';
-import { YTDLP_BIN }       from '../youtube/ytdlp.js';
+import { spawn }        from 'child_process';
+import { readdirSync }  from 'fs';
+import { tmpdir }       from 'os';
+import { join }         from 'path';
+import { randomBytes }  from 'crypto';
+import { URL_PATTERNS } from '../../../constants.js';
+import { YTDLP_BIN }    from '../youtube/ytdlp.js';
+
+const OEMBED_TIMEOUT_MS = 10_000;
+const YTDLP_SEARCH_MS   = 40_000;  // < 50s registry timeout
 
 function extractSpotifyId(url) {
   const m = url.match(URL_PATTERNS.spotify);
@@ -29,7 +35,7 @@ async function fetchSpotifyMeta(url) {
     `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`,
     {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BoomBox/2.0)' },
-      signal:  AbortSignal.timeout(10_000),
+      signal:  AbortSignal.timeout(OEMBED_TIMEOUT_MS),
     },
   );
   if (!res.ok) throw new Error(`Spotify oEmbed gagal: HTTP ${res.status}`);
@@ -44,7 +50,7 @@ async function fetchSpotifyMeta(url) {
 
 /**
  * Jalankan yt-dlp dengan search URL (ytmsearch1: atau ytsearch1:).
- * Timeout lebih panjang (25 s) karena mencakup search + download.
+ * Timeout: YTDLP_SEARCH_MS (lebih panjang karena mencakup search + download).
  */
 function runYtdlpSearch(searchUrl, label) {
   const uid    = randomBytes(6).toString('hex');
@@ -80,12 +86,10 @@ function runYtdlpSearch(searchUrl, label) {
     proc.stdout.on('data', (c) => { stdout += c; });
     proc.stderr.on('data', (c) => { stderr += c; });
 
-    // 40s internal < 45s registry timeout → proses selalu ter-kill sebelum
-    // ProviderRegistry timeout, tidak ada orphan process atau temp file leak.
     const timer = setTimeout(() => {
       try { proc.kill('SIGTERM'); } catch {}
-      settle(() => reject(new Error(`${label}: timeout 40s.`)));
-    }, 40_000);
+      settle(() => reject(new Error(`${label}: timeout ${YTDLP_SEARCH_MS / 1000}s.`)));
+    }, YTDLP_SEARCH_MS);
 
     proc.on('error', (err) => {
       clearTimeout(timer);
@@ -119,20 +123,18 @@ function runYtdlpSearch(searchUrl, label) {
         }));
       }
 
-      const isBotCheck = stderr.includes('Sign in to confirm') ||
-                         stderr.includes('bot') ||
-                         stderr.includes('captcha');
+      const isBotCheck = /Sign in to confirm|captcha|challenge/i.test(stderr);
       if (isBotCheck) {
         return settle(() => reject(new Error(`${label}: YouTube meminta verifikasi bot.`)));
       }
 
-      const detail = stderr.slice(-300).trim();
+      const detail = stderr.slice(-400).trim();
       settle(() => reject(new Error(`${label} [exit ${code}]: ${detail || 'Download gagal.'}`)));
     });
   });
 }
 
-export async function oembedProvider(url) {
+export async function oembedProvider(url, ctx = {}) {
   const meta = extractSpotifyId(url);
   if (!meta) throw new Error('URL Spotify tidak valid.');
   if (meta.type !== 'track') throw new Error('Hanya Spotify Track yang didukung saat ini.');
@@ -170,7 +172,7 @@ export async function oembedProvider(url) {
     id:           meta.id,
     title:        dlResult.ytTitle || title,
     duration:     dlResult.duration,
-    filePath:     dlResult.filePath,   // langsung ke ffmpeg, bukan audioUrl 30s
+    filePath:     dlResult.filePath,
     urlExpiresAt: null,
   };
 }

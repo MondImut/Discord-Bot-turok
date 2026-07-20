@@ -2,21 +2,28 @@
  * YouTube Platform — Multi-provider extraction via ProviderRegistry.
  *
  * Provider order (tried in sequence):
- *   1. yt-dlp      — binary, most reliable, downloads to local file
- *   2. Kaizen      — kaizenapi.my.id, no key required
- *   3. y2mp3       — hub.y2mp3.co (ytmp3.gg backend), no key required
- *   4. Cobalt      — cobalt.tools, skips if JWT required
+ *   1. yt-dlp           — binary; most reliable; dynamic timeout based on duration
+ *   2. yt-dlp+cookies   — skips if no cookies.txt found
+ *   3. kaizen           — kaizenapi.my.id; fast API (10s timeout)
+ *   4. y2mp3            — hub.y2mp3.co (ytmp3.gg backend); fast API (10s timeout)
+ *   5. cobalt           — cobalt.tools; skips if JWT required (10s timeout)
  *
- * Note: ytdl-core removed — frequently blocked by YouTube bot-check.
- * All providers return { audioUrl } or { filePath }; Downloader handles
- * the download → ffmpeg → Top4Top pipeline.
+ * Per-provider timeouts:
+ *   yt-dlp / yt-dlp+cookies — 120s registry timeout; internal dynamic timer fires first
+ *   API providers           — 15s registry timeout; internal 10s AbortSignal fires first
+ *
+ * Preflight:
+ *   Runs before the registry to get { id, title, duration } quickly.
+ *   Allows early rejection of private/unavailable videos.
+ *   Passes ctx to all providers for dynamic timeout + duration enforcement.
  */
 
 import { ProviderRegistry }                          from './ProviderRegistry.js';
 import { ytdlpProvider, ytdlpCookiesProvider }       from './providers/youtube/ytdlp.js';
 import { kaizenProvider }                            from './providers/youtube/kaizen.js';
-import { y2mp3Provider  }                            from './providers/youtube/y2mp3.js';
+import { y2mp3Provider }                             from './providers/youtube/y2mp3.js';
 import { cobaltProvider }                            from './providers/youtube/cobalt.js';
+import { preflightYouTube }                          from './providers/youtube/preflight.js';
 import { URL_PATTERNS }                              from '../constants.js';
 
 // Module-level singleton — created once, survives for the life of the plugin.
@@ -24,17 +31,23 @@ let _registry = null;
 
 export function getYouTubeRegistry(logger) {
   if (!_registry) {
-    _registry = new ProviderRegistry('YouTube', logger);
-    _registry.register('yt-dlp',         ytdlpProvider);         // 1. yt-dlp (no cookies)
-    _registry.register('yt-dlp+cookies', ytdlpCookiesProvider);  // 2. yt-dlp with cookies file
-    _registry.register('kaizen',         kaizenProvider);        // 3. kaizenapi.my.id
-    _registry.register('y2mp3',          y2mp3Provider);         // 4. hub.y2mp3.co
-    _registry.register('cobalt',         cobaltProvider);        // 5. cobalt.tools (if accessible)
+    // Default registry timeout is 120s (safety net for long yt-dlp runs).
+    // Each provider configures its own per-provider timeout below.
+    _registry = new ProviderRegistry('YouTube', logger, { timeoutMs: 120_000 });
+
+    // yt-dlp: 120s registry timeout; internal dynamic timer (20-120s) fires first
+    _registry.register('yt-dlp',         ytdlpProvider,        { timeoutMs: 120_000 });
+    // yt-dlp+cookies: skips immediately if no cookies.txt → near-zero overhead
+    _registry.register('yt-dlp+cookies', ytdlpCookiesProvider, { timeoutMs: 120_000 });
+    // API providers: 15s registry timeout; internal 10s AbortSignal fires first
+    _registry.register('kaizen',         kaizenProvider,       { timeoutMs: 15_000  });
+    _registry.register('y2mp3',          y2mp3Provider,        { timeoutMs: 15_000  });
+    _registry.register('cobalt',         cobaltProvider,       { timeoutMs: 15_000  });
   }
   return _registry;
 }
 
-/** Return provider status only if the registry was already initialized. Safe at any time. */
+/** Return provider status only if the registry was already initialized. */
 export function getYouTubeProviderStatus() {
   return _registry?.getStatus() ?? [];
 }
@@ -50,9 +63,17 @@ export function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
-/** Resolve a YouTube URL via the provider chain. */
-export async function resolveYouTube(url, logger) {
-  return getYouTubeRegistry(logger).resolve(url);
+/**
+ * Resolve a YouTube URL via preflight → provider chain.
+ *
+ * @param {string} url
+ * @param {object} logger
+ * @param {object} [ctx={}]   Pre-fetched ctx (e.g. from Downloader's preflight).
+ *                            If present, skips the internal preflight.
+ * @returns {Promise<object>} Platform result
+ */
+export async function resolveYouTube(url, logger, ctx = {}) {
+  return getYouTubeRegistry(logger).resolve(url, ctx);
 }
 
 /** Format seconds → mm:ss or hh:mm:ss */
@@ -63,3 +84,6 @@ export function formatDuration(seconds) {
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+// Re-export preflight for use in Downloader
+export { preflightYouTube };

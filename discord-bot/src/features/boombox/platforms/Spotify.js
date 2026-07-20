@@ -1,10 +1,15 @@
 /**
- * Spotify Platform — Single provider via ProviderRegistry.
+ * Spotify Platform — Multi-provider extraction via ProviderRegistry.
  *
- * Provider:
- *   1. oembed — Spotify oEmbed untuk metadata (title, artist) saja,
- *               kemudian cari & download audio penuh via YouTube Music / YouTube (yt-dlp).
- *               TIDAK menggunakan Spotify preview URL (30 detik).
+ * Provider order:
+ *   1. oembed           — Spotify oEmbed metadata + yt-dlp YouTube Music search (full audio)
+ *   2. youtube-search   — Spotify oEmbed metadata + YouTube search scrape (no yt-dlp)
+ *
+ * The oembed provider is the primary path and uses yt-dlp to search + download.
+ * If yt-dlp is unavailable or fails, youtube-search scrapes YouTube for a video ID
+ * and falls through to the YouTube provider chain (Kaizen → y2mp3 → Cobalt).
+ *
+ * Registry timeout: 50s (covers oembed's 40s internal yt-dlp timeout + margin).
  */
 
 import { ProviderRegistry }      from './ProviderRegistry.js';
@@ -14,20 +19,16 @@ import { URL_PATTERNS }          from '../constants.js';
 
 let _registry = null;
 
-export function getSpotifyRegistry(logger) {
+function getSpotifyRegistry(logger) {
   if (!_registry) {
-    // Spotify provider melakukan YouTube Music search + download via yt-dlp,
-    // sehingga butuh timeout lebih panjang dari default 15s registry.
-    // 45s registry > 40s internal yt-dlp timeout → proses selalu ter-kill sebelum
-    // registry timeout, tidak ada orphan process.
-    _registry = new ProviderRegistry('Spotify', logger, { timeoutMs: 45_000 });
-    _registry.register('oembed',          oembedProvider);        // 1. yt-dlp ytmsearch (full audio)
-    _registry.register('youtube-search',  youtubeSearchProvider); // 2. YouTube search scrape fallback
+    _registry = new ProviderRegistry('Spotify', logger, { timeoutMs: 50_000 });
+    _registry.register('oembed',         oembedProvider,        { timeoutMs: 50_000 }); // yt-dlp search+download
+    _registry.register('youtube-search', youtubeSearchProvider, { timeoutMs: 45_000 }); // scrape fallback
   }
   return _registry;
 }
 
-/** Return provider status only if the registry was already initialized. Safe at any time. */
+/** Return provider status only if the registry was already initialized. */
 export function getSpotifyProviderStatus() {
   return _registry?.getStatus() ?? [];
 }
@@ -37,7 +38,7 @@ export function isSpotifyUrl(url) {
   return /open\.spotify\.com/i.test(url);
 }
 
-/** Extract track/album/playlist type and ID from Spotify URL. */
+/** Extract Spotify track/album/playlist metadata from URL. */
 export function extractSpotifyId(url) {
   const m = url.match(URL_PATTERNS.spotify);
   return m ? { type: m[1], id: m[2] } : null;
@@ -47,7 +48,8 @@ export function extractSpotifyId(url) {
  * Resolve a Spotify track URL via the provider chain.
  * @param {string} url
  * @param {object} logger
+ * @param {object} [ctx={}]   (unused for Spotify, kept for interface consistency)
  */
-export async function resolveSpotify(url, logger) {
-  return getSpotifyRegistry(logger).resolve(url);
+export async function resolveSpotify(url, logger, ctx = {}) {
+  return getSpotifyRegistry(logger).resolve(url, ctx);
 }
