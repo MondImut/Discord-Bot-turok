@@ -23,6 +23,7 @@ import { randomBytes }               from 'crypto';
 
 const YTDLP_CANDIDATES = [
   process.env.YTDLP_PATH,
+  '/nix/store/am2x1y1qyja0hbyjpffj7rcvycp9d644-yt-dlp-2025.6.30/bin/yt-dlp',
   '/home/runner/workspace/.pythonlibs/bin/yt-dlp',
   '/usr/local/bin/yt-dlp',
   '/usr/bin/yt-dlp',

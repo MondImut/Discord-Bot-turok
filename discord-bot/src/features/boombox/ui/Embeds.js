@@ -492,6 +492,11 @@ export function errorLogEmbed(data) {
     guildName,
     guildId,
     time,
+    // New fields
+    mediaTitle,
+    cacheHit,
+    workerActive,
+    workerMax,
   } = data;
 
   const solution = ERROR_SOLUTIONS[category] ?? ERROR_SOLUTIONS.Unknown;
@@ -503,18 +508,36 @@ export function errorLogEmbed(data) {
     { name: '🏠 Guild',     value: guildName ? `${guildName} (${guildId})` : (guildId ?? '—'), inline: false },
   ];
 
-  if (platform)   fields.push({ name: '📡 Platform',     value: (PLATFORM_META[platform]?.label ?? platform), inline: true });
-  if (channelId)  fields.push({ name: '📢 Channel',      value: `<#${channelId}>`,   inline: true });
-  if (userId)     fields.push({ name: '👤 User',          value: `<@${userId}>`,      inline: true });
-  if (queueId)    fields.push({ name: '🔑 Queue ID',      value: `\`${queueId.slice(0, 8)}...\``, inline: true });
-  if (lastProvider) fields.push({ name: '⚡ Last Provider', value: lastProvider,       inline: true });
+  if (platform)   fields.push({ name: '📡 Platform',  value: (PLATFORM_META[platform]?.label ?? platform), inline: true });
+  if (channelId)  fields.push({ name: '📢 Channel',   value: `<#${channelId}>`,  inline: true });
+  if (userId)     fields.push({ name: '👤 User',       value: `<@${userId}>`,     inline: true });
+  if (queueId)    fields.push({ name: '🔑 Queue ID',   value: `\`${queueId}\``,   inline: false });
+  if (mediaTitle) fields.push({ name: '🎵 Nama Lagu',  value: mediaTitle.slice(0, 200), inline: false });
+
+  if (originalUrl) {
+    fields.push({ name: '🔗 Link Asli', value: `\`${originalUrl.slice(0, 300)}\``, inline: false });
+  }
+
+  // Cache & Worker info
+  const cacheVal  = cacheHit != null ? (cacheHit ? '✅ Hit' : '❌ Miss') : '—';
+  const workerVal = (workerActive != null && workerMax != null)
+    ? `${workerActive} aktif / ${workerMax} maks`
+    : (workerActive != null ? `${workerActive} aktif` : '—');
+
+  fields.push({ name: '🗃️ Cache Status', value: cacheVal,  inline: true });
+  fields.push({ name: '👷 Worker',        value: workerVal, inline: true });
+
   if (elapsedMs !== undefined && elapsedMs !== null) {
-    fields.push({ name: '⏱️ Durasi',   value: fmtMs(elapsedMs), inline: true });
+    fields.push({ name: '⏱️ Durasi', value: fmtMs(elapsedMs), inline: true });
+  }
+
+  if (lastProvider) {
+    fields.push({ name: '⚡ Last Provider', value: lastProvider, inline: true });
   }
 
   if (triedProviders.length > 0) {
     const provLines = triedProviders.map((p, i) =>
-      `\`${i + 1}. ${p.name}\` — ${(p.reason ?? 'Unknown').slice(0, 120)}`
+      `\`${i + 1}. ${p.name}\` — ${(p.reason ?? 'Unknown').slice(0, 150)}`
     ).join('\n');
     fields.push({
       name:   '🔄 Provider yang Dicoba',
@@ -525,17 +548,30 @@ export function errorLogEmbed(data) {
     fields.push({ name: '🔄 Provider Detail', value: providerDetail.slice(0, 512), inline: false });
   }
 
-  if (originalUrl) {
-    const safeUrl = originalUrl.slice(0, 200);
-    fields.push({ name: '🔗 Link Asli', value: `\`${safeUrl}\``, inline: false });
+  fields.push({ name: '❌ Penyebab', value: errorMessage.slice(0, 800), inline: false });
+
+  // Stack trace — truncated to fit Discord field limit
+  if (stack) {
+    const stackTrimmed = stack.slice(0, 900);
+    fields.push({
+      name:  '📋 Stack Trace',
+      value: `\`\`\`\n${stackTrimmed}\n\`\`\``,
+      inline: false,
+    });
   }
 
-  fields.push({ name: '❌ Penyebab', value: errorMessage.slice(0, 500), inline: false });
-
-  // Stack trace TIDAK dikirim ke Discord — hanya masuk console/log file.
-  // Lihat: MessageHandler.js → this.#logger.error() untuk stack trace di console.
-
   fields.push({ name: '💡 Saran', value: solution, inline: false });
+
+  // System info line
+  const sysLine = [
+    environment    ? `Env: ${environment}` : null,
+    nodeVersion    ? `Node: ${nodeVersion}` : null,
+    memoryMB != null ? `RAM: ${memoryMB} MB` : null,
+  ].filter(Boolean).join(' • ');
+
+  if (sysLine) {
+    fields.push({ name: '🖥️ System', value: sysLine, inline: false });
+  }
 
   return new EmbedBuilder()
     .setColor(COLORS.ERROR)

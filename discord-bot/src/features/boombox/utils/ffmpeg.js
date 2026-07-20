@@ -1,15 +1,15 @@
 /**
- * ffmpeg.js — Thin wrapper around system ffmpeg.
+ * ffmpeg.js — Thin async wrapper around system ffmpeg.
  *
  * Converts any audio/video input to MP3 at 64 kbps.
  * - Strips all metadata (title, artist, cover art).
  * - Uses libmp3lame codec.
- * - Returns path to the converted file.
+ * - ASYNC: does NOT block the Node.js event loop (uses spawn, not spawnSync).
  */
 
-import { spawnSync } from 'child_process';
-import { existsSync } from 'fs';
-import path from 'path';
+import { spawn }       from 'child_process';
+import { existsSync }  from 'fs';
+import path            from 'path';
 
 /** Preferred ffmpeg binary paths (check in order). */
 const FFMPEG_CANDIDATES = [
@@ -27,18 +27,19 @@ function findFfmpeg() {
   return 'ffmpeg';
 }
 
-const FFMPEG_BIN = findFfmpeg();
+export const FFMPEG_BIN = findFfmpeg();
 
 /**
- * Convert an audio/video file to 64 kbps MP3.
+ * Convert an audio/video file to 64 kbps MP3 asynchronously.
+ * Does NOT block the Node.js event loop — safe to call from concurrent workers.
  *
  * @param {string} inputPath  - Path to the source file.
  * @param {string} outputPath - Desired output .mp3 path (must differ from input).
  * @param {object} [opts]
  * @param {number} [opts.bitrate=64]  - Audio bitrate in kbps.
  * @param {number} [opts.timeout=120] - Timeout in seconds.
- * @returns {string} The resolved outputPath.
- * @throws {Error} If ffmpeg exits with non-zero code.
+ * @returns {Promise<string>} Resolves with resolved outputPath.
+ * @throws {Error} If ffmpeg exits with non-zero code or times out.
  */
 export function convertToMp3(inputPath, outputPath, { bitrate = 64, timeout = 120 } = {}) {
   const args = [
@@ -52,17 +53,38 @@ export function convertToMp3(inputPath, outputPath, { bitrate = 64, timeout = 12
     outputPath,
   ];
 
-  const result = spawnSync(FFMPEG_BIN, args, {
-    timeout: timeout * 1000,
-    stdio:   ['ignore', 'pipe', 'pipe'],
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (fn) => { if (!settled) { settled = true; fn(); } };
+
+    let proc;
+    try {
+      proc = spawn(FFMPEG_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      return reject(new Error(`ffmpeg spawn gagal: ${err.message}`));
+    }
+
+    let stderr = '';
+    proc.stderr.on('data', (c) => { stderr += c; });
+
+    const timer = setTimeout(() => {
+      try { proc.kill('SIGTERM'); } catch {}
+      settle(() => reject(new Error(`ffmpeg timeout ${timeout}s`)));
+    }, timeout * 1000);
+
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      settle(() => reject(new Error(`ffmpeg error: ${err.message}`)));
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (settled) return;
+      if (code === 0) {
+        settle(() => resolve(path.resolve(outputPath)));
+      } else {
+        settle(() => reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-500).trim()}`)));
+      }
+    });
   });
-
-  if (result.status !== 0) {
-    const stderr = result.stderr?.toString().slice(-500) ?? '';
-    throw new Error(`ffmpeg exited ${result.status}: ${stderr}`);
-  }
-
-  return path.resolve(outputPath);
 }
-
-export { FFMPEG_BIN };

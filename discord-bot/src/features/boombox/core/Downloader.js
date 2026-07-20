@@ -135,11 +135,11 @@ export class Downloader {
         cleaner.track(rawFile); // yt-dlp file — delete after upload
       }
 
-      // 5. ffmpeg → 64 kbps MP3
+      // 5. ffmpeg → 64 kbps MP3 (async — does not block event loop)
       const mp3Path = join(tmpdir(), `boombox_${uid}.mp3`);
       cleaner.track(mp3Path);
       this.#logger.debug(`ffmpeg: ${rawFile} → ${mp3Path}`, 'Downloader');
-      convertToMp3(rawFile, mp3Path);
+      await convertToMp3(rawFile, mp3Path);
 
       // 6. Upload to Top4Top
       this.#logger.debug(`Top4Top upload: ${mp3Path}`, 'Downloader');

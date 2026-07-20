@@ -8,6 +8,11 @@
  * Pagination: 5 URLs per page, Previous / Next buttons.
  * Each user has independent pagination state embedded in the button customId.
  * Navigation customId: bb:urllogs:nav:{platform}:{page}
+ *
+ * Lifecycle:
+ * - Platform button click: deferReply(ephemeral) → editReply
+ * - Pagination click:      deferUpdate()          → editReply
+ * Using defer gives 15 s budget instead of the 3 s raw-reply window.
  */
 
 import { MessageFlags } from 'discord.js';
@@ -29,66 +34,75 @@ export class UrlLogsHandler {
 
   /** Called when a platform button (YouTube/TikTok/Spotify) is pressed. */
   async handlePlatformButton(interaction, platCode) {
-    await this.#showPage(interaction, platCode, 0, true);
+    // Defer first (ephemeral) to give 15 s budget
+    try {
+      await interaction.deferReply({ ephemeral: true });
+    } catch (err) {
+      this.#logger.warn(`UrlLogsHandler deferReply failed: ${err.message}`, 'UrlLogsHandler');
+      return;
+    }
+    await this.#sendPage(interaction, platCode, 0);
   }
 
   /** Called for pagination buttons: bb:urllogs:nav:{platCode}:{page} */
   async handleNav(interaction, platCode, page) {
-    await this.#showPage(interaction, platCode, page, false);
+    // Defer update (silent) first
+    try {
+      await interaction.deferUpdate();
+    } catch (err) {
+      this.#logger.warn(`UrlLogsHandler deferUpdate failed: ${err.message}`, 'UrlLogsHandler');
+      return;
+    }
+    await this.#sendPage(interaction, platCode, page);
   }
 
   // ─── Internal ─────────────────────────────────────────────────────────────
 
-  async #showPage(interaction, platCode, page, isFirst) {
-    const guildId  = interaction.guildId;
-    const platform = PLAT_MAP[platCode];
-    if (!platform) return;
-
-    const config = this.#db.getConfig(guildId);
-    if (!config) {
-      const msg = { content: '❌ BoomBox belum dikonfigurasi.', flags: MessageFlags.Ephemeral };
-      return isFirst ? interaction.reply(msg) : interaction.update(msg);
-    }
-
-    const pm      = PLATFORM_META[platform] ?? { label: platform, emoji: '🎵', color: 0x5865F2 };
-    const offset  = page * PAGE_SIZE;
-
-    const { rows, total } = this.#db.listMedia(guildId, {
-      platform,
-      limit:  PAGE_SIZE,
-      offset,
-      sort:   'created_at DESC',
-    });
-
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const currentPage = Math.min(page, totalPages - 1);
-
-    const embed = this.#buildEmbed(rows, pm, total, currentPage, totalPages);
-    const components = this.#buildNav(platCode, currentPage, totalPages, total);
-
+  async #sendPage(interaction, platCode, page) {
     try {
-      if (isFirst) {
-        await interaction.reply({
-          embeds:     [embed],
-          components,
-          flags:      MessageFlags.Ephemeral,
-        });
-      } else {
-        // interaction.update() does not accept flags — the message is already ephemeral.
-        await interaction.update({
-          embeds:     [embed],
-          components,
-        });
+      const guildId  = interaction.guildId;
+      const platform = PLAT_MAP[platCode];
+      if (!platform) {
+        return interaction.editReply({ content: '❌ Platform tidak dikenal.', components: [] });
       }
+
+      const config = this.#db.getConfig(guildId);
+      if (!config) {
+        return interaction.editReply({ content: '❌ BoomBox belum dikonfigurasi.', components: [] });
+      }
+
+      const pm     = PLATFORM_META[platform] ?? { label: platform, emoji: '🎵', color: 0x5865F2 };
+      const offset = page * PAGE_SIZE;
+
+      const { rows, total } = this.#db.listMedia(guildId, {
+        platform,
+        limit:  PAGE_SIZE,
+        offset,
+        sort:   'created_at DESC',
+      });
+
+      const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const currentPage = Math.min(page, totalPages - 1);
+
+      const embed      = this.#buildEmbed(rows, pm, total, currentPage, totalPages);
+      const components = this.#buildNav(platCode, currentPage, totalPages, total);
+
+      await interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       this.#logger.warn(`UrlLogsHandler page failed: ${err.message}`, 'UrlLogsHandler');
+      try {
+        await interaction.editReply({
+          content:    '❌ Gagal memuat URL Logs. Coba lagi.',
+          components: [],
+        });
+      } catch { /* expired */ }
     }
   }
 
   #buildEmbed(rows, pm, total, page, totalPages) {
     const lines = rows.length > 0
       ? rows.map((m, i) => {
-          const num  = page * PAGE_SIZE + i + 1;
+          const num   = page * PAGE_SIZE + i + 1;
           const title = (m.title || 'Tanpa Judul').slice(0, 50);
           const url   = m.boombox_url?.length > 60
             ? m.boombox_url.slice(0, 57) + '...'

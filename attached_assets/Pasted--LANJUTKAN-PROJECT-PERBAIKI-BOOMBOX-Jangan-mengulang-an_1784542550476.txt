@@ -1,0 +1,213 @@
+# LANJUTKAN PROJECT - PERBAIKI BOOMBOX
+
+Jangan mengulang analisis project dari awal.
+
+Lanjutkan dari kondisi project saat ini.
+
+Jangan mengubah fitur lain.
+
+Fokus hanya memperbaiki bug BoomBox yang masih ada.
+
+==================================================
+1. SPOTIFY BOOMBOX
+==================================================
+
+Spotify masih gagal.
+
+Error saat ini:
+
+- spawn yt-dlp ENO
+- hanya mencoba provider oembed
+- hasil lagu kadang hanya 30 detik
+- gagal mencari lagu penuh
+
+Perbaiki seluruh alur Spotify.
+
+Spotify TIDAK BOLEH menjadi sumber audio.
+
+Spotify hanya digunakan untuk mengambil:
+
+- Judul
+- Artist
+- Album
+- Durasi
+
+Setelah metadata didapat,
+
+Cari lagu yang sama ke provider download yang sudah dimiliki BoomBox.
+
+Pastikan:
+
+- tidak menggunakan preview_url Spotify
+- tidak menghasilkan lagu 30 detik
+- mencoba seluruh provider secara berurutan
+- jika provider pertama gagal lanjut otomatis ke provider berikutnya
+- hanya gagal jika seluruh provider benar-benar gagal
+
+Perbaiki juga masalah yt-dlp ENO pada seluruh hosting yang didukung.
+
+==================================================
+2. YOUTUBE BOOMBOX TERLALU LAMBAT
+==================================================
+
+Optimalkan seluruh pipeline.
+
+Target:
+
+- download lebih cepat
+- upload lebih cepat
+- generate URL lebih cepat
+
+Gunakan cache jika URL sudah pernah dibuat.
+
+Jangan download ulang jika cache masih valid.
+
+Kurangi proses yang tidak diperlukan.
+
+Pastikan worker, queue dan upload berjalan paralel jika memungkinkan.
+
+==================================================
+3. ERROR LOGS BELUM LENGKAP
+==================================================
+
+Lengkapi Error Logs.
+
+Minimal tampilkan:
+
+- Guild
+- Channel
+- User
+- Queue ID
+- Platform
+- Provider terakhir
+- Semua provider yang dicoba
+- Error masing-masing provider
+- Durasi
+- Nama lagu
+- Link asli
+- Cache Status
+- Worker
+- Stack Trace (jika ada)
+- Penyebab utama
+- Saran perbaikan
+
+Jangan memotong informasi error.
+
+==================================================
+4. URL LOGS ERROR
+==================================================
+
+Saat memilih:
+
+YouTube
+
+TikTok
+
+Spotify
+
+muncul:
+
+Interaction Failed
+
+Perbaiki seluruh interaction URL Logs.
+
+Pastikan:
+
+- tombol bekerja
+- pagination bekerja
+- search bekerja
+- favorite bekerja
+- preview bekerja
+- private viewer tetap berjalan
+- tidak ada Interaction Failed
+
+Gunakan lifecycle Discord Interaction yang benar.
+
+==================================================
+5. AUTO DELETE PESAN USER
+==================================================
+
+Saat user mengirim link BoomBox.
+
+Contoh:
+
+https://youtu.be/....
+
+Bot harus:
+
+1.
+Membaca link.
+
+2.
+Memproses BoomBox.
+
+3.
+Mengirim hasil URL BoomBox.
+
+4.
+Mention user.
+
+Contoh:
+
+@User
+
+BoomBox berhasil dibuat.
+
+https://....
+
+5.
+Setelah berhasil,
+
+hapus pesan asli user secara otomatis.
+
+Jika bot tidak memiliki Manage Messages,
+
+catat ke Error Logs tetapi jangan membatalkan proses BoomBox.
+
+==================================================
+6. TESTING
+==================================================
+
+Lakukan pengujian:
+
+YouTube
+
+TikTok
+
+Spotify
+
+URL Logs
+
+Error Logs
+
+Auto Delete
+
+Mention User
+
+Cache
+
+Queue
+
+Upload
+
+==================================================
+7. LAPORAN
+==================================================
+
+Setelah selesai berikan laporan lengkap:
+
+- File yang diubah
+- Penyebab bug
+- Cara memperbaikinya
+- Hasil testing
+- Waktu rata-rata proses YouTube
+- Hasil testing Spotify
+- Hasil testing URL Logs
+- Hasil testing Error Logs
+- Apakah seluruh bug sudah selesai
+
+Jangan menambahkan fitur baru.
+
+Jangan mengubah fitur yang sudah berjalan normal.
+
+Fokus hanya menyelesaikan seluruh bug BoomBox sampai stabil.

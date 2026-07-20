@@ -7,9 +7,10 @@
  *               TIDAK menggunakan Spotify preview URL (30 detik).
  */
 
-import { ProviderRegistry } from './ProviderRegistry.js';
-import { oembedProvider }   from './providers/spotify/oembed.js';
-import { URL_PATTERNS }     from '../constants.js';
+import { ProviderRegistry }      from './ProviderRegistry.js';
+import { oembedProvider }        from './providers/spotify/oembed.js';
+import { youtubeSearchProvider } from './providers/spotify/youtube-search.js';
+import { URL_PATTERNS }          from '../constants.js';
 
 let _registry = null;
 
@@ -20,7 +21,8 @@ export function getSpotifyRegistry(logger) {
     // 45s registry > 40s internal yt-dlp timeout → proses selalu ter-kill sebelum
     // registry timeout, tidak ada orphan process.
     _registry = new ProviderRegistry('Spotify', logger, { timeoutMs: 45_000 });
-    _registry.register('oembed', oembedProvider);
+    _registry.register('oembed',          oembedProvider);        // 1. yt-dlp ytmsearch (full audio)
+    _registry.register('youtube-search',  youtubeSearchProvider); // 2. YouTube search scrape fallback
   }
   return _registry;
 }

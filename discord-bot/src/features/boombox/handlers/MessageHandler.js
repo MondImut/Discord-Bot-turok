@@ -148,9 +148,10 @@ export class MessageHandler {
         // Note: max-duration is now enforced earlier in Downloader (pre-download),
         // so media arriving here has already passed the duration gate.
 
-        // ── Step 1: Send result to user ──────────────────────────────────
+        // ── Step 1: Send result to user (with mention) ───────────────────
         try {
           await reply.edit({
+            content:    `<@${message.author.id}> BoomBox berhasil dibuat! ⬇️`,
             embeds:     [successEmbed(media, cacheHit, elapsed, config, message.author)],
             components: successActionRow(media.id),
           });
@@ -187,12 +188,12 @@ export class MessageHandler {
           this.#setupManager.updateManagerPanel(guildId).catch(() => {});
         }
 
-        // ── Step 4: Auto-delete original user message if configured ──────
-        if (config.delete_msgs && message.deletable) {
-          await message.delete().catch((err) => {
-            this.#logger.debug(`Auto-delete failed: ${err.message}`, 'MessageHandler');
-          });
-        }
+        // ── Step 4: Auto-delete original user message ────────────────────
+        // Always attempt deletion. Jika tidak ada izin Manage Messages,
+        // catat ke logger tapi TIDAK membatalkan proses.
+        message.delete().catch((err) => {
+          this.#logger.debug(`Auto-delete failed: ${err.message}`, 'MessageHandler');
+        });
 
         this.#logger.debug(`Converted: ${platform}/${videoId} cacheHit=${cacheHit}`, 'MessageHandler');
       },
@@ -270,6 +271,11 @@ export class MessageHandler {
             nodeVersion:     process.version,
             memoryMB:        memMB,
             environment:     detectEnvironment(),
+            // Additional context for richer error logs
+            mediaTitle:      err._mediaTitle  ?? null,
+            cacheHit:        false,
+            workerActive:    this.#pool?.activeCount ?? null,
+            workerMax:       null,  // config fetched by ErrorLogger
           });
         }
       },
