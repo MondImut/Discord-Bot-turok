@@ -1,0 +1,23 @@
+{
+  "premiumUsers": {
+    "1462685321262272664": {
+      "type": "permanent",
+      "expiresAt": null,
+      "grantedBy": "1462685321262272664",
+      "grantedAt": "2026-07-20T04:19:41.248Z"
+    }
+  },
+  "premiumRoles": {},
+  "customLimitUsers": {},
+  "customLimitRoles": {},
+  "dashboard": {
+    "messageId": null,
+    "entryIndex": 0
+  },
+  "premStatsDashboard": {
+    "channelId": null,
+    "messageId": null
+  },
+  "lastPremiumTarget": "<@1462685321262272664>",
+  "lastCustomLimitTarget": null
+}
