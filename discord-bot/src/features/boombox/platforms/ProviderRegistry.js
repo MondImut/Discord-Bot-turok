@@ -22,12 +22,20 @@ export class ProviderRegistry {
 
   #name;
   #logger;
+  #timeoutMs;
   /** @type {Array<{name:string, fn:Function, stats:object, disabledUntil:number}>} */
   #providers = [];
 
-  constructor(name, logger) {
-    this.#name   = name;
-    this.#logger = logger;
+  /**
+   * @param {string} name     — platform label for logging
+   * @param {object} logger
+   * @param {object} [opts]
+   * @param {number} [opts.timeoutMs]  — per-provider timeout in ms (default: PROVIDER_TIMEOUT_MS)
+   */
+  constructor(name, logger, opts = {}) {
+    this.#name      = name;
+    this.#logger    = logger;
+    this.#timeoutMs = opts.timeoutMs ?? ProviderRegistry.PROVIDER_TIMEOUT_MS;
   }
 
   /**
@@ -91,11 +99,11 @@ export class ProviderRegistry {
       const start = Date.now();
 
       try {
-        // Each provider gets a hard 30s timeout — timeout → skip to next provider
+        // Each provider gets a hard timeout — timeout → skip to next provider
         const result = await this.#withTimeout(
           provider.fn(url),
-          ProviderRegistry.PROVIDER_TIMEOUT_MS,
-          `Timeout ${ProviderRegistry.PROVIDER_TIMEOUT_MS / 1000}s`,
+          this.#timeoutMs,
+          `Timeout ${this.#timeoutMs / 1000}s`,
         );
         const latencyMs = Date.now() - start;
 

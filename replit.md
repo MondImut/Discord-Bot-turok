@@ -1,45 +1,43 @@
-# [Project name]
+# Pangeran Assistant AI — Discord Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Discord bot gabungan (Bot Fandli + BoomBox Turok v1.5.0). Fitur: BoomBox (konversi YouTube/TikTok/Spotify ke MP3), sistem tiket, bug report, premium, CPanel, scanner keylogger/malware, auto thread, database manager.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- **Start bot**: workflow `Discord Bot` — `pnpm --filter @workspace/discord-bot run start`
+- **Required secrets**: `BOT_TOKEN` (Discord bot token), `SCAN_CHANNEL_ID` (channel ID scanner)
+- **Pertama kali**: jalankan `/deploy` setelah bot online untuk mendaftarkan slash commands, lalu `/setup` untuk konfigurasi channel
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Node.js 20 (ESM), discord.js v14
+- pnpm workspaces (`@workspace/discord-bot`)
+- Database: JSON files (`data/*.json`) untuk fitur Fandli; SQLite (`better-sqlite3 v12`) untuk BoomBox di `data/database/boombox.db`
+- Audio pipeline: yt-dlp → ffmpeg → Top4Top upload
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `discord-bot/src/` — source utama bot
+- `discord-bot/src/features/boombox/` — BoomBox plugin (Turok)
+- `discord-bot/src/features/` — semua fitur lain (scanner, ticket, premium, dll)
+- `discord-bot/config/` — konstanta, channel IDs, role IDs, settings
+- `discord-bot/data/` — runtime data (gitignored)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- BoomBox diinisialisasi langsung via `src/features/boombox/index.js` — tidak ada PluginBase/Application framework
+- Spotify: oEmbed hanya untuk metadata (title, artist); audio penuh diambil dari YouTube Music/YouTube via yt-dlp `ytmsearch1:` — tidak ada 30-detik preview
+- `better-sqlite3` harus v12.x (v9 gagal compile di Node.js 24)
+- BoomBox setup panel menggunakan `interaction.update()`, bukan `deferUpdate()` + `reply()`
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Bahasa Indonesia untuk semua teks user-facing
+- Basis adalah Bot Fandli; hanya BoomBox yang dari Turok
+- Jangan tambah fitur di luar yang ada di kedua project asli
+- Perintah user-facing tidak boleh diubah (hanya `/setup` yang baru/konsolidasi)
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Lihat `discord-bot/replit.md` untuk dokumentasi lengkap fitur dan struktur
+- Lihat `discord-bot/.agents/memory/MEMORY.md` untuk catatan keputusan teknis

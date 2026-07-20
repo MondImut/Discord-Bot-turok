@@ -2,8 +2,9 @@
  * Spotify Platform — Single provider via ProviderRegistry.
  *
  * Provider:
- *   1. oembed — oEmbed metadata + page scrape for 30-sec preview URL
- *      (Only free option without a Spotify API key)
+ *   1. oembed — Spotify oEmbed untuk metadata (title, artist) saja,
+ *               kemudian cari & download audio penuh via YouTube Music / YouTube (yt-dlp).
+ *               TIDAK menggunakan Spotify preview URL (30 detik).
  */
 
 import { ProviderRegistry } from './ProviderRegistry.js';
@@ -14,7 +15,11 @@ let _registry = null;
 
 export function getSpotifyRegistry(logger) {
   if (!_registry) {
-    _registry = new ProviderRegistry('Spotify', logger);
+    // Spotify provider melakukan YouTube Music search + download via yt-dlp,
+    // sehingga butuh timeout lebih panjang dari default 15s registry.
+    // 45s registry > 40s internal yt-dlp timeout → proses selalu ter-kill sebelum
+    // registry timeout, tidak ada orphan process.
+    _registry = new ProviderRegistry('Spotify', logger, { timeoutMs: 45_000 });
     _registry.register('oembed', oembedProvider);
   }
   return _registry;

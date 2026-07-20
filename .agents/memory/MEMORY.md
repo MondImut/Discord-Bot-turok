@@ -1,0 +1,1 @@
+- [Spotify audio source fix](spotify-audio-fix.md) — Spotify hanya untuk metadata (oEmbed title+artist); audio penuh via ytmsearch1:/ytsearch1: yt-dlp, TIDAK preview_url 30s.
