@@ -1,0 +1,6 @@
+- [BoomBox integration shim](boombox-shim.md) — Turok BoomBox initialized via src/features/boombox/index.js; no PluginBase/Application framework used.
+- [Dual database architecture](dual-db.md) — JSON files for all Fandli features; SQLite (better-sqlite3 v12) for BoomBox only at data/database/boombox.db.
+- [Legacy db stub](legacy-db-stub.md) — db.js exports a no-op stub `db` object; old Fandli BoomBox JSON methods all return safe defaults; real BoomBox data is in BoomBoxDB via getBoomBoxDB().
+- [BoomBoxDB getStats return shape](boombox-stats.md) — getStats(guildId) returns row with `total_convert` field (not `total`); hesuCommand bridges to this.
+- [bblog interactions retired](bblog-retired.md) — bblog: interaction prefix is fully retired; logDashboard.js and logInteraction.js deleted; Turok PanelManager handles BoomBox logs via bb: prefix.
+- [better-sqlite3 version](sqlite-version.md) — Must use better-sqlite3 ^12.11.1; v9.x fails to compile on Node.js v24 due to V8 API changes; v12 has prebuilt binaries.

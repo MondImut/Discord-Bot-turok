@@ -1,0 +1,50 @@
+Lanjutkan project dari kondisi terakhir. Jangan mengulang analisis dari awal karena sebelumnya kamu sudah membaca seluruh source code Bot DC Fandli dan Bot Turok.
+
+Fokuskan pekerjaan pada penyelesaian merge dan perbaikan yang belum selesai.
+
+Prioritas:
+
+1. Lanjutkan seluruh pekerjaan yang terhenti akibat habisnya token.
+2. Selesaikan semua error import, dependency, dan konflik module.
+3. Selesaikan seluruh migrasi BoomBox dari Bot Turok ke Bot Fandli hingga 100%, tanpa ada bagian yang tertinggal.
+4. Selesaikan integrasi Keylogger Scanner dari Bot Turok.
+5. Pertahankan Bot DC Fandli sebagai pondasi utama.
+6. Jangan menambahkan fitur baru yang tidak ada di kedua project.
+7. Jangan mengubah command user. Yang diganti hanya sistem setup menjadi "/setup".
+8. Perbaiki seluruh referensi database lama agar kompatibel dengan sistem database Bot Fandli.
+9. Pastikan semua handler, event, command, utilitas, dan service saling terhubung dengan benar.
+10. Hapus file duplikat, dependency yang tidak digunakan, dan kode lama yang sudah digantikan.
+
+Sebelum menganggap pekerjaan selesai, lakukan pengecekan menyeluruh terhadap:
+
+- Semua import
+- Semua command
+- Semua event
+- Semua handler
+- Semua module
+- BoomBox
+- Keylogger Scanner
+- Ticket
+- Thread
+- Premium
+- Database
+- GitHub Backup
+- AI
+- Seluruh fitur lain yang memang sudah ada di project.
+
+Jalankan bot dan perbaiki seluruh error yang muncul sampai bot dapat startup tanpa error.
+
+Lakukan pengujian terhadap setiap fitur yang telah di-merge. Jangan hanya memastikan project berhasil build, tetapi pastikan fitur benar-benar berfungsi.
+
+Jangan berhenti di tengah proses. Kerjakan hingga seluruh merge selesai, seluruh bug diperbaiki, dan project berada dalam kondisi stabil.
+
+Di akhir, berikan laporan lengkap yang berisi:
+
+- Fitur yang berhasil di-merge.
+- Fitur yang diperbaiki.
+- Bug yang ditemukan dan cara memperbaikinya.
+- Daftar file yang diubah.
+- Daftar file yang dihapus.
+- Daftar fitur yang masih belum selesai (jika masih ada).
+
+Jika menemukan masalah baru, perbaiki terlebih dahulu sebelum melanjutkan ke tahap berikutnya. Prioritaskan project yang stabil dan berjalan normal dibanding menyelesaikan pekerjaan dengan cepat.

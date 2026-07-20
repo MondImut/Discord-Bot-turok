@@ -286,7 +286,7 @@ async function showBugReportPanel(interaction) {
 
 /** Thread sub-panel: list enabled channels. */
 async function showThreadPanel(interaction) {
-  const enabledChannels = threadDB.getAll?.() ?? [];
+  const enabledChannels = threadDB.getAll(interaction.guildId) ?? [];
   const lines = enabledChannels.length > 0
     ? enabledChannels.map((ch) => `• <#${ch}>`).join('\n')
     : '❌ Tidak ada channel yang mengaktifkan Auto Thread.';

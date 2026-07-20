@@ -10,7 +10,7 @@
  */
 
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { premDB, db } from "../../database/db.js";
+import { premDB } from "../../database/db.js";
 import { logger } from "../../utils/logger.js";
 
 const SEP      = "━━━━━━━━━━━━━━━━";
@@ -129,8 +129,9 @@ export function buildPremStatsEmbed() {
   // ── Section: Pengguna Limit Kustom ───────────────────────────────────
   const limEntries = [];
   for (const u of limUsers.slice(0, MAX_LIST)) {
-    const usage = db.getUsage(u.userId);
-    const sisa  = Math.max(0, u.limit - usage);
+    // Usage tracking per-user was part of old Fandli BoomBox JSON system.
+    // Turok's BoomBox tracks usage internally; display limit as-is.
+    const sisa  = u.limit;
     const sisa2 = formatSisa(u.expiresAt);
     const berlakuBlock = sisa2 === null
       ? `♾️ Permanen`

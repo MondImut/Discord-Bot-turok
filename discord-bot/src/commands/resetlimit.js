@@ -7,7 +7,7 @@
  */
 
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { premDB, db } from "../database/db.js";
+import { premDB } from "../database/db.js";
 import { denyIfNotStaff } from "../middleware/permissions.js";
 import { appendToPremiumLog } from "../features/premium/log.js";
 import { updatePremStatsDashboard } from "../features/premium/statsDashboard.js";
@@ -31,8 +31,7 @@ export async function execute(interaction) {
     note = `Limit khusus role ${target} dihapus. Setiap member sekarang mengikuti limit default.`;
   } else {
     premDB.deleteCustomLimitUser(target.id);
-    db.resetUsage(target.id);
-    note = `Limit khusus ${target} dihapus dan penggunaan hari ini dipulihkan ke penuh (0 terpakai).`;
+    note = `Limit khusus ${target} dihapus. Turok BoomBox mengelola penggunaan hariannya secara otomatis.`;
   }
 
   const embed = new EmbedBuilder()

@@ -10,8 +10,8 @@ import os from "node:os";
 import { INDICATOR_CATEGORIES } from "./indicators.js";
 import { KNOWN_OBFUSCATOR_NAMES } from "./obfuscatorDetector.js";
 import { getQueueSnapshot } from "../queue/boomboxQueue.js";
-import { db } from "../../database/db.js";
-import { ticketDB } from "../../database/ticketDB.js";
+import { getBoomBoxDB }    from "../boombox/index.js";
+import { ticketDB }        from "../../database/ticketDB.js";
 
 // Bumped alongside package.json when the analysis pipeline changes.
 export const SCANNER_VERSION = "2.0.0";
@@ -69,7 +69,9 @@ export async function handleHesuCommand(message, client) {
 
   // Per-feature health checks
   const queueSnap  = getQueueSnapshot();
-  const boomboxStats = db.getStatistics();
+  const _bbdb      = getBoomBoxDB();
+  const _bbStats   = _bbdb ? (_bbdb.getStats(message.guildId) ?? {}) : {};
+  const boomboxStats = { total: _bbStats.total_convert ?? 0 };
   const tickets    = ticketDB.getAllTickets();
   const openTickets = tickets.filter((t) => t.status !== "closed").length;
 

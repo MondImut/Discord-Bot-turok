@@ -64,7 +64,7 @@ import {
 } from "discord.js";
 
 import { databaseDB }      from "../../database/databaseDB.js";
-import { db, premDB }      from "../../database/db.js";
+import { premDB }          from "../../database/db.js";
 import { isStaff }         from "../../middleware/permissions.js";
 import { logger }          from "../../utils/logger.js";
 import { logError }        from "../../utils/errorLogger.js";
